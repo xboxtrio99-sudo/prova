@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Top Phone - E-Commerce</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Top Phone - Telefoni e Accessori</title>
+  <link rel="stylesheet" href="style-variants.css">
   <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
   <header>
-    <div class="logo">TOP PHONE</div>
+    <div class="logo">📱 TOP PHONE</div>
     <nav>
       <a href="#" onclick="showHome()">Home</a>
       <a href="#" onclick="showShop()">Prodotti</a>
@@ -20,8 +20,8 @@
   </header>
 
   <section class="hero" id="hero">
-    <h1>Nuova Collezione</h1>
-    <p>Scopri i prodotti più trendy della stagione</p>
+    <h1>📱 I Migliori Smartphone</h1>
+    <p>Samsung, Apple, Xiaomi e molto altro. Prezzi imbattibili!</p>
     <button onclick="showShop()">Esplora →</button>
   </section>
 
@@ -31,7 +31,7 @@
 
   <main class="products" id="products"></main>
 
-  <div class="overlay" id="overlay" onclick="toggleCart()"></div>
+  <div class="overlay" id="overlay"></div>
 
   <aside class="cart-sidebar" id="cart">
     <div class="cart-header">
@@ -50,27 +50,33 @@
 
   <!-- MODAL PRODOTTO CON VARIANTI -->
   <div class="modal-overlay" id="product-modal">
-    <div class="modal">
+    <div class="modal product-detail-modal">
       <button class="modal-close" onclick="closeProductModal()">×</button>
-      <div class="modal-content">
-        <div class="product-image">
-          <img id="modal-image" src="" alt="">
+      <div class="product-detail-content">
+        <div class="product-detail-image">
+          <img id="modal-product-image" src="" alt="Prodotto">
         </div>
-        <div class="product-info">
-          <h2 id="modal-name"></h2>
-          <p id="modal-description"></p>
-          <div id="variant-section"></div>
-          <div class="product-price-box">
-            <div class="price" id="modal-price">€0.00</div>
-            <div class="stock" id="modal-stock"></div>
+        <div class="product-detail-info">
+          <h2 id="modal-product-name">Nome Prodotto</h2>
+          <div class="product-rating" id="modal-product-rating">⭐ 0.0</div>
+          <p id="modal-product-description">Descrizione prodotto</p>
+          
+          <div class="variant-selector" id="variant-selectors"></div>
+          
+          <div class="product-price-stock">
+            <div class="product-price" id="modal-product-price">€0.00</div>
+            <div class="product-stock" id="modal-product-stock">Seleziona variante</div>
           </div>
-          <button class="add-to-cart-btn" id="modal-add-btn" onclick="addFromModal()">Aggiungi al Carrello</button>
+          
+          <button class="add-to-cart-btn" id="modal-add-btn" onclick="addVariantToCart()">
+            + Aggiungi al Carrello
+          </button>
         </div>
       </div>
     </div>
   </div>
 
-
+  <!-- MODAL CHECKOUT -->
   <div class="modal-overlay" id="checkout-modal">
     <div class="modal">
       <button class="modal-close" onclick="closeCheckout()">×</button>
@@ -164,10 +170,10 @@
   </div>
 
   <footer>
-    <div class="logo">TOP PHONE</div>
-    <p>© 2025 Tutti i diritti riservati</p>
+    <div class="logo">📱 TOP PHONE</div>
+    <p>© 2025 Top Phone - Tutti i diritti riservati</p>
   </footer>
 
-  <script src="script.js"></script>
+  <script src="script-variants.js"></script>
 </body>
 </html>
