@@ -4,6 +4,7 @@
 const SUPABASE_URL = 'https://hrjokojbvbmcftmjxihv.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhyam9rb2pidmJtY2Z0bWp4aWh2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3NjY0NzYsImV4cCI6MjA3OTM0MjQ3Nn0.Lk2_VLJbsfQrtDbGgFq9mCNKKdkdyTdCOhktsYIO1Vg';
 const STRIPE_PUBLIC_KEY = 'pk_live_51RMQy2ApBcFhRXHbNhYzC25TFA95DWOeo74P73ufWTLvRAt1zSVqQZNucFKEq8ErJYCcnrVxOJi6AUtxEBYySoYC00aPJKcBiZ';
+const SHIPPING_COST = 8.00; // Spedizione fissa
 
 let products = [];
 let categories = [];
@@ -13,25 +14,6 @@ let customerData = {};
 let stripe = null;
 let selectedProduct = null;
 let selectedVariant = null;
-
-// Calcola costo spedizione totale del carrello
-function calculateShipping() {
-  if (cart.length === 0) return 0;
-  
-  // Trova il costo spedizione più alto tra i prodotti nel carrello
-  const shippingCosts = cart.map(item => {
-    // Se il prodotto ha già shipping_cost salvato nel carrello, usa quello
-    if (item.shipping_cost !== undefined) {
-      return item.shipping_cost;
-    }
-    // Altrimenti cerca il prodotto nell'array products
-    const product = products.find(p => p.id === item.id);
-    return product?.shipping_cost || 8.00;
-  });
-  
-  const maxShipping = Math.max(...shippingCosts);
-  return maxShipping;
-}
 
 const productsContainer = document.getElementById('products');
 const cartItemsContainer = document.getElementById('cart-items');
@@ -51,18 +33,10 @@ async function loadProducts() {
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
     });
     
-    if (!res.ok) {
-      throw new Error('Errore caricamento prodotti');
-    }
+    if (!res.ok) throw new Error('Errore caricamento prodotti');
     
     products = await res.json();
-    
-    // Imposta default shipping_cost se mancante (backward compatibility)
-    products = products.map(p => ({
-      ...p, 
-      shipping_cost: typeof p.shipping_cost === 'number' ? p.shipping_cost : 8.00
-    }));
-    
+    console.log('Prodotti caricati:', products.length);
     renderProducts();
   } catch (e) {
     console.error('Errore loadProducts:', e);
@@ -76,18 +50,15 @@ async function loadCategories() {
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
     });
     
-    if (!res.ok) {
-      throw new Error('Errore caricamento categorie');
-    }
+    if (!res.ok) throw new Error('Errore caricamento categorie');
     
     categories = await res.json();
+    console.log('Categorie caricate:', categories.length);
     renderFilters();
   } catch (e) { 
     console.error('Errore loadCategories:', e);
-    // Almeno mostra il filtro "Tutti"
     renderFilters();
   }
-}
 }
 
 function renderFilters() {
@@ -153,6 +124,8 @@ function isVariantAvailable(product, color, storage) {
 
 function renderProducts() {
   const filtered = currentFilter === 'tutti' ? products : products.filter(p => p.categories?.slug === currentFilter);
+  console.log('Rendering prodotti:', filtered.length);
+  
   if (!filtered.length) { 
     productsContainer.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:3rem;">Nessun prodotto</div>'; 
     return; 
@@ -234,14 +207,12 @@ function renderVariantSelectors(product) {
   
   let html = '';
   
-  // Colori
   if (colors.length > 0) {
     html += `
       <div class="variant-group">
         <label>Colore:</label>
         <div class="variant-options">
           ${colors.map(color => {
-            // Verifica se TUTTI gli storage per questo colore sono esauriti
             const hasStock = product.variants.some(v => v.color === color && v.stock > 0);
             const disabledClass = !hasStock ? 'disabled' : '';
             const disabledStyle = !hasStock ? 'style="opacity:0.3;cursor:not-allowed;text-decoration:line-through"' : '';
@@ -255,7 +226,6 @@ function renderVariantSelectors(product) {
     `;
   }
   
-  // Memoria
   if (storages.length > 0) {
     html += `
       <div class="variant-group">
@@ -277,22 +247,18 @@ function renderVariantSelectors(product) {
 function selectColor(color) {
   if (!selectedProduct) return;
   
-  // Aggiorna selezione colore
   document.querySelectorAll('[data-color]').forEach(el => el.classList.remove('selected'));
   document.querySelector(`[data-color="${color}"]`)?.classList.add('selected');
   
-  // Reset storage selection
   document.querySelectorAll('[data-storage]').forEach(el => {
     el.classList.remove('selected', 'disabled');
   });
   
-  // Disabilita storage non disponibili per questo colore
   const availableStorages = getAvailableStorages(selectedProduct, color);
   document.querySelectorAll('[data-storage]').forEach(el => {
     const storage = el.getAttribute('data-storage');
     const variant = findVariant(selectedProduct, color, storage);
     
-    // Disabilita se: non esiste variante O stock = 0
     if (!variant || variant.stock <= 0 || !availableStorages.includes(storage)) {
       el.classList.add('disabled');
       el.style.opacity = '0.3';
@@ -305,7 +271,6 @@ function selectColor(color) {
     }
   });
   
-  // Reset variant if storage not selected
   if (!selectedVariant || selectedVariant.color !== color) {
     selectedVariant = null;
   }
@@ -325,7 +290,6 @@ function selectStorage(storage) {
   const variant = findVariant(selectedProduct, selectedColor, storage);
   if (!variant || variant.stock <= 0) return;
   
-  // Aggiorna selezione storage
   document.querySelectorAll('[data-storage]').forEach(el => el.classList.remove('selected'));
   document.querySelector(`[data-storage="${storage}"]`)?.classList.add('selected');
   
@@ -396,8 +360,7 @@ function addToCart(id) {
       price: parseFloat(p.price), 
       image_url: p.image_url, 
       qty: 1, 
-      maxStock: p.stock,
-      shipping_cost: p.shipping_cost || 8.00
+      maxStock: p.stock
     });
   }
   updateCart();
@@ -424,8 +387,7 @@ function addToCartWithVariant(product, variant) {
       price: parseFloat(variant.price),
       image_url: product.image_url,
       qty: 1,
-      maxStock: variant.stock,
-      shipping_cost: product.shipping_cost || 8.00
+      maxStock: variant.stock
     });
   }
   updateCart();
@@ -509,14 +471,13 @@ function initStripe() {
 
 function renderOrderSummary() {
   const sub = cart.reduce((s, i) => s + i.price * i.qty, 0);
-  const shippingCost = calculateShipping();
   document.getElementById('order-summary').innerHTML = cart.map(i => {
     const variantInfo = i.variantColor ? ` (${i.variantColor} - ${i.variantStorage})` : '';
     return `<div class="summary-item"><span>${i.name}${variantInfo} × ${i.qty}</span><span>€${(i.price * i.qty).toFixed(2)}</span></div>`;
   }).join('');
   document.getElementById('summary-subtotal').textContent = `€${sub.toFixed(2)}`;
-  document.getElementById('summary-shipping').textContent = shippingCost === 0 ? 'GRATIS' : `€${shippingCost.toFixed(2)}`;
-  document.getElementById('summary-total').textContent = `€${(sub + shippingCost).toFixed(2)}`;
+  document.getElementById('summary-shipping').textContent = `€${SHIPPING_COST.toFixed(2)}`;
+  document.getElementById('summary-total').textContent = `€${(sub + SHIPPING_COST).toFixed(2)}`;
 }
 
 async function processPayment() {
@@ -530,8 +491,7 @@ async function processPayment() {
     await verifyStock();
     
     const sub = cart.reduce((s, i) => s + i.price * i.qty, 0);
-    const shippingCost = calculateShipping();
-    const total = sub + shippingCost;
+    const total = sub + SHIPPING_COST;
     const addr = `${customerData.address}, ${customerData.cap} ${customerData.city} (${customerData.province})`;
 
     const order = await saveOrder({ 
@@ -556,7 +516,7 @@ async function processPayment() {
           const variantInfo = i.variantColor ? ` (${i.variantColor} - ${i.variantStorage})` : '';
           return { name: i.name + variantInfo, price: i.price, quantity: i.qty };
         }),
-        shipping: shippingCost,
+        shipping: SHIPPING_COST,
         customerEmail: customerData.email,
         successUrl: `${window.location.origin}/success.html?session_id={CHECKOUT_SESSION_ID}`,
         cancelUrl: `${window.location.origin}/index.html`
@@ -638,13 +598,12 @@ async function saveOrder(data) {
     })))
   });
   
-  // CRITICO: Decrementa stock per ogni prodotto/variante nel carrello
+  // Decrementa stock
   for (const item of cart) {
     const product = products.find(p => p.id === item.id);
     if (!product) continue;
     
     if (item.variantColor && item.variantStorage) {
-      // Prodotto con varianti - decrementa variante specifica
       const newVariants = product.variants.map(v => {
         if (v.color === item.variantColor && v.storage === item.variantStorage) {
           return { ...v, stock: Math.max(0, v.stock - item.qty) };
@@ -658,7 +617,6 @@ async function saveOrder(data) {
         body: JSON.stringify({ variants: newVariants })
       });
     } else {
-      // Prodotto semplice - decrementa stock normale
       const newStock = Math.max(0, product.stock - item.qty);
       await fetch(`${SUPABASE_URL}/rest/v1/products?id=eq.${item.id}`, {
         method: 'PATCH',
@@ -679,14 +637,16 @@ function showShop() { document.getElementById('hero').style.display = 'none'; do
 // ============================================
 
 document.addEventListener('DOMContentLoaded', async () => {
+  console.log('🚀 Inizializzazione...');
+  
   const saved = localStorage.getItem('cart');
   if (saved) cart = JSON.parse(saved);
   
   productsContainer.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:3rem;">⏳ Caricamento...</div>';
+  
   await loadCategories(); 
   await loadProducts();
   
-  // Aggiorna cart con stock correnti
   cart = cart.filter(item => { 
     const p = products.find(x => x.id === item.id); 
     if (!p) return false;
@@ -728,10 +688,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     goToStep(2);
   });
   
-  // Close modal on overlay click
   document.getElementById('overlay').addEventListener('click', () => {
     if (document.getElementById('product-modal').classList.contains('show')) {
       closeProductModal();
     }
   });
+  
+  console.log('✅ Inizializzazione completata!');
 });
