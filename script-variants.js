@@ -4,7 +4,7 @@
 const SUPABASE_URL = 'https://hrjokojbvbmcftmjxihv.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhyam9rb2pidmJtY2Z0bWp4aWh2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3NjY0NzYsImV4cCI6MjA3OTM0MjQ3Nn0.Lk2_VLJbsfQrtDbGgFq9mCNKKdkdyTdCOhktsYIO1Vg';
 const STRIPE_PUBLIC_KEY = 'pk_live_51RMQy2ApBcFhRXHbNhYzC25TFA95DWOeo74P73ufWTLvRAt1zSVqQZNucFKEq8ErJYCcnrVxOJi6AUtxEBYySoYC00aPJKcBiZ';
-const shippingCost = 8.00;
+const shippingCost = 0.00;
 
 let products = [];
 let categories = [];
