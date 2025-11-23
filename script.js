@@ -4,7 +4,7 @@
 const SUPABASE_URL = 'https://hrjokojbvbmcftmjxihv.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhyam9rb2pidmJtY2Z0bWp4aWh2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3NjY0NzYsImV4cCI6MjA3OTM0MjQ3Nn0.Lk2_VLJbsfQrtDbGgFq9mCNKKdkdyTdCOhktsYIO1Vg';
 const STRIPE_PUBLIC_KEY = 'pk_live_51RMQy2ApBcFhRXHbNhYzC25TFA95DWOeo74P73ufWTLvRAt1zSVqQZNucFKEq8ErJYCcnrVxOJi6AUtxEBYySoYC00aPJKcBiZ';
-const SHIPPING_COST = 8.00; // Spedizione fissa
+const shippingCost = 8.00;
 
 let products = [];
 let categories = [];
@@ -12,8 +12,6 @@ let cart = [];
 let currentFilter = 'tutti';
 let customerData = {};
 let stripe = null;
-let selectedProduct = null;
-let selectedVariant = null;
 
 const productsContainer = document.getElementById('products');
 const cartItemsContainer = document.getElementById('cart-items');
@@ -23,42 +21,26 @@ const cartSidebar = document.getElementById('cart');
 const overlay = document.getElementById('overlay');
 const filtersContainer = document.getElementById('filters');
 
-// ============================================
-// 📦 LOAD DATA
-// ============================================
-
 async function loadProducts() {
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/products?select=*,categories(name,slug)&order=created_at.desc`, {
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
     });
-    
-    if (!res.ok) throw new Error('Errore caricamento prodotti');
-    
     products = await res.json();
-    console.log('Prodotti caricati:', products.length);
     renderProducts();
   } catch (e) {
-    console.error('Errore loadProducts:', e);
-    productsContainer.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:3rem;color:#ef4444;">⚠️ Errore caricamento prodotti</div>';
+    productsContainer.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:3rem;color:#ef4444;">⚠️ Errore caricamento</div>';
   }
 }
 
 async function loadCategories() {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/categories?select=*&order=name`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/categories?select=*`, {
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
     });
-    
-    if (!res.ok) throw new Error('Errore caricamento categorie');
-    
     categories = await res.json();
-    console.log('Categorie caricate:', categories.length);
     renderFilters();
-  } catch (e) { 
-    console.error('Errore loadCategories:', e);
-    renderFilters();
-  }
+  } catch (e) { console.error(e); }
 }
 
 function renderFilters() {
@@ -66,89 +48,24 @@ function renderFilters() {
     ${categories.map(c => `<button class="filter-btn" onclick="filterProducts('${c.slug}', this)">${c.name}</button>`).join('')}`;
 }
 
-// ============================================
-// 🎨 VARIANTS HELPERS
-// ============================================
-
-function hasVariants(product) {
-  return product.variants && product.variants.length > 0;
-}
-
-function getTotalStock(product) {
-  if (hasVariants(product)) {
-    return product.variants.reduce((sum, v) => sum + (v.stock || 0), 0);
-  }
-  return product.stock || 0;
-}
-
-function getPriceRange(product) {
-  if (hasVariants(product)) {
-    const prices = product.variants.map(v => v.price);
-    const minPrice = Math.min(...prices);
-    const maxPrice = Math.max(...prices);
-    if (minPrice === maxPrice) return `€${minPrice.toFixed(2)}`;
-    return `€${minPrice.toFixed(2)} - €${maxPrice.toFixed(2)}`;
-  }
-  return `€${parseFloat(product.price || 0).toFixed(2)}`;
-}
-
-function getAvailableColors(product) {
-  if (!hasVariants(product)) return [];
-  const colors = [...new Set(product.variants.map(v => v.color))];
-  return colors;
-}
-
-function getAvailableStorages(product, selectedColor = null) {
-  if (!hasVariants(product)) return [];
-  let variants = product.variants;
-  if (selectedColor) {
-    variants = variants.filter(v => v.color === selectedColor);
-  }
-  const storages = [...new Set(variants.map(v => v.storage))];
-  return storages;
-}
-
-function findVariant(product, color, storage) {
-  if (!hasVariants(product)) return null;
-  return product.variants.find(v => v.color === color && v.storage === storage);
-}
-
-function isVariantAvailable(product, color, storage) {
-  const variant = findVariant(product, color, storage);
-  return variant && variant.stock > 0;
-}
-
-// ============================================
-// 🖼️ RENDER PRODUCTS
-// ============================================
-
 function renderProducts() {
   const filtered = currentFilter === 'tutti' ? products : products.filter(p => p.categories?.slug === currentFilter);
-  console.log('Rendering prodotti:', filtered.length);
-  
-  if (!filtered.length) { 
-    productsContainer.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:3rem;">Nessun prodotto</div>'; 
-    return; 
-  }
+  if (!filtered.length) { productsContainer.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:3rem;">Nessun prodotto</div>'; return; }
   
   productsContainer.innerHTML = filtered.map(p => {
-    const stock = getTotalStock(p);
+    const stock = p.stock || 0;
     const out = stock <= 0;
-    const priceDisplay = getPriceRange(p);
-    const hasVar = hasVariants(p);
-    
     return `
-    <div class="card ${out ? 'out-of-stock' : ''}" onclick="openProductModal(${p.id})">
+    <div class="card ${out ? 'out-of-stock' : ''}">
       <div class="card-img" style="${p.image_url ? `background-image:url('${p.image_url}')` : ''}">${!p.image_url ? '📦' : ''}${out ? '<div class="sold-out-badge">ESAURITO</div>' : ''}</div>
       <div class="card-body">
         <div class="card-cat">${p.categories?.name || 'Prodotto'}</div>
         <div class="card-title">${p.name}</div>
-        <div class="card-rating">⭐ ${p.rating || '0.0'} ${stock > 0 && stock <= 10 ? `<span class="low-stock">• Solo ${stock}!</span>` : ''}</div>
+        <div class="card-rating">★ ${p.rating || '0.0'} ${stock > 0 && stock <= 5 ? `<span class="low-stock">• Solo ${stock}!</span>` : ''}</div>
         <div class="card-footer">
-          <div class="card-price">${priceDisplay}</div>
-          <button class="add-btn ${out ? 'disabled' : ''}" onclick="event.stopPropagation(); ${hasVar ? `openProductModal(${p.id})` : `addToCart(${p.id})`}">${out ? 'Esaurito' : '+ Aggiungi'}</button>
+          <div class="card-price">€${parseFloat(p.price).toFixed(2)}</div>
+          ${out ? '<button class="add-btn disabled" disabled>Esaurito</button>' : `<button class="add-btn" onclick="addToCart(${p.id})">+ Aggiungi</button>`}
         </div>
-        ${hasVar ? '<div class="has-variants-badge">🎨 Più opzioni disponibili</div>' : ''}
       </div>
     </div>`;
   }).join('');
@@ -161,234 +78,15 @@ function filterProducts(cat, btn) {
   renderProducts();
 }
 
-// ============================================
-// 🛍️ PRODUCT MODAL
-// ============================================
-
-function openProductModal(productId) {
-  const product = products.find(p => p.id === productId);
-  if (!product) return;
-  
-  selectedProduct = product;
-  selectedVariant = null;
-  
-  document.getElementById('modal-product-name').textContent = product.name;
-  document.getElementById('modal-product-description').textContent = product.description || '';
-  document.getElementById('modal-product-rating').textContent = `⭐ ${product.rating || '0.0'}`;
-  document.getElementById('modal-product-image').src = product.image_url || 'https://via.placeholder.com/400?text=No+Image';
-  
-  const hasVar = hasVariants(product);
-  
-  if (hasVar) {
-    renderVariantSelectors(product);
-    updatePriceAndStock();
-  } else {
-    document.getElementById('variant-selectors').innerHTML = '';
-    const stock = product.stock || 0;
-    document.getElementById('modal-product-price').textContent = `€${parseFloat(product.price).toFixed(2)}`;
-    document.getElementById('modal-product-stock').innerHTML = stock > 0 
-      ? `<span class="${stock <= 5 ? 'low' : ''}">✓ ${stock} disponibili</span>`
-      : '<span class="out">✗ Non disponibile</span>';
-    document.getElementById('modal-add-btn').disabled = stock <= 0;
-  }
-  
-  document.getElementById('product-modal').classList.add('show');
-}
-
-function closeProductModal() {
-  document.getElementById('product-modal').classList.remove('show');
-  selectedProduct = null;
-  selectedVariant = null;
-}
-
-function renderVariantSelectors(product) {
-  const colors = getAvailableColors(product);
-  const storages = getAvailableStorages(product);
-  
-  let html = '';
-  
-  if (colors.length > 0) {
-    html += `
-      <div class="variant-group">
-        <label>Colore:</label>
-        <div class="variant-options">
-          ${colors.map(color => {
-            const hasStock = product.variants.some(v => v.color === color && v.stock > 0);
-            const disabledClass = !hasStock ? 'disabled' : '';
-            const disabledStyle = !hasStock ? 'style="opacity:0.3;cursor:not-allowed;text-decoration:line-through"' : '';
-            return `
-            <div class="variant-option ${disabledClass}" onclick="${hasStock ? `selectColor('${color}')` : ''}" data-color="${color}" ${disabledStyle}>
-              ${color}
-            </div>`;
-          }).join('')}
-        </div>
-      </div>
-    `;
-  }
-  
-  if (storages.length > 0) {
-    html += `
-      <div class="variant-group">
-        <label>Memoria:</label>
-        <div class="variant-options" id="storage-options">
-          ${storages.map(storage => `
-            <div class="variant-option" onclick="selectStorage('${storage}')" data-storage="${storage}">
-              ${storage}
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    `;
-  }
-  
-  document.getElementById('variant-selectors').innerHTML = html;
-}
-
-function selectColor(color) {
-  if (!selectedProduct) return;
-  
-  document.querySelectorAll('[data-color]').forEach(el => el.classList.remove('selected'));
-  document.querySelector(`[data-color="${color}"]`)?.classList.add('selected');
-  
-  document.querySelectorAll('[data-storage]').forEach(el => {
-    el.classList.remove('selected', 'disabled');
-  });
-  
-  const availableStorages = getAvailableStorages(selectedProduct, color);
-  document.querySelectorAll('[data-storage]').forEach(el => {
-    const storage = el.getAttribute('data-storage');
-    const variant = findVariant(selectedProduct, color, storage);
-    
-    if (!variant || variant.stock <= 0 || !availableStorages.includes(storage)) {
-      el.classList.add('disabled');
-      el.style.opacity = '0.3';
-      el.style.cursor = 'not-allowed';
-      el.style.textDecoration = 'line-through';
-    } else {
-      el.style.opacity = '1';
-      el.style.cursor = 'pointer';
-      el.style.textDecoration = 'none';
-    }
-  });
-  
-  if (!selectedVariant || selectedVariant.color !== color) {
-    selectedVariant = null;
-  }
-  
-  updatePriceAndStock();
-}
-
-function selectStorage(storage) {
-  if (!selectedProduct) return;
-  
-  const selectedColor = document.querySelector('[data-color].selected')?.getAttribute('data-color');
-  if (!selectedColor) {
-    alert('⚠️ Seleziona prima un colore');
-    return;
-  }
-  
-  const variant = findVariant(selectedProduct, selectedColor, storage);
-  if (!variant || variant.stock <= 0) return;
-  
-  document.querySelectorAll('[data-storage]').forEach(el => el.classList.remove('selected'));
-  document.querySelector(`[data-storage="${storage}"]`)?.classList.add('selected');
-  
-  selectedVariant = variant;
-  updatePriceAndStock();
-}
-
-function updatePriceAndStock() {
-  if (!selectedProduct) return;
-  
-  const priceEl = document.getElementById('modal-product-price');
-  const stockEl = document.getElementById('modal-product-stock');
-  const addBtn = document.getElementById('modal-add-btn');
-  
-  if (selectedVariant) {
-    const price = selectedVariant.price;
-    const stock = selectedVariant.stock;
-    
-    priceEl.textContent = `€${parseFloat(price).toFixed(2)}`;
-    stockEl.innerHTML = stock > 0 
-      ? `<span class="${stock <= 5 ? 'low' : ''}">✓ ${stock} disponibili</span>`
-      : '<span class="out">✗ Non disponibile</span>';
-    addBtn.disabled = stock <= 0;
-  } else {
-    priceEl.textContent = getPriceRange(selectedProduct);
-    stockEl.innerHTML = '<span class="variant-selection-required">⚠️ Seleziona colore e memoria</span>';
-    addBtn.disabled = true;
-  }
-}
-
-function addVariantToCart() {
-  if (!selectedProduct) return;
-  
-  if (hasVariants(selectedProduct)) {
-    if (!selectedVariant) {
-      alert('⚠️ Seleziona colore e memoria prima di aggiungere al carrello');
-      return;
-    }
-    addToCartWithVariant(selectedProduct, selectedVariant);
-  } else {
-    addToCart(selectedProduct.id);
-  }
-  
-  closeProductModal();
-}
-
-// ============================================
-// 🛒 CART
-// ============================================
-
 function addToCart(id) {
   const p = products.find(x => x.id === id);
-  if (!p || getTotalStock(p) <= 0) return;
-  
-  if (hasVariants(p)) {
-    openProductModal(id);
-    return;
-  }
-  
-  const exist = cart.find(x => x.id === id && !x.variantId);
+  if (!p || p.stock <= 0) return;
+  const exist = cart.find(x => x.id === id);
   if (exist) {
     if (exist.qty >= p.stock) { alert(`Max disponibile: ${p.stock}`); return; }
     exist.qty++;
   } else {
-    cart.push({ 
-      id: p.id, 
-      name: p.name, 
-      price: parseFloat(p.price), 
-      image_url: p.image_url, 
-      qty: 1, 
-      maxStock: p.stock
-    });
-  }
-  updateCart();
-}
-
-function addToCartWithVariant(product, variant) {
-  const cartId = `${product.id}-${variant.color}-${variant.storage}`;
-  const exist = cart.find(x => x.cartId === cartId);
-  
-  if (exist) {
-    if (exist.qty >= variant.stock) { 
-      alert(`Max disponibile: ${variant.stock}`); 
-      return; 
-    }
-    exist.qty++;
-  } else {
-    cart.push({
-      id: product.id,
-      cartId: cartId,
-      name: product.name,
-      variantColor: variant.color,
-      variantStorage: variant.storage,
-      variantSku: variant.sku,
-      price: parseFloat(variant.price),
-      image_url: product.image_url,
-      qty: 1,
-      maxStock: variant.stock
-    });
+    cart.push({ id: p.id, name: p.name, price: parseFloat(p.price), image_url: p.image_url, qty: 1, maxStock: p.stock });
   }
   updateCart();
 }
@@ -398,54 +96,37 @@ function updateCart() {
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
   cartCountEl.textContent = count;
   cartTotalEl.textContent = `€${total.toFixed(2)}`;
-  
   if (!cart.length) {
     cartItemsContainer.innerHTML = '<div class="empty-cart"><span>🛒</span>Carrello vuoto</div>';
   } else {
-    cartItemsContainer.innerHTML = cart.map(i => {
-      const itemId = i.cartId || i.id;
-      const variantInfo = i.variantColor ? `<div class="cart-item-variant">${i.variantColor} • ${i.variantStorage}</div>` : '';
-      return `
+    cartItemsContainer.innerHTML = cart.map(i => `
       <div class="cart-item">
         <div class="cart-item-img" style="${i.image_url ? `background-image:url('${i.image_url}')` : ''}">${!i.image_url ? '📦' : ''}</div>
         <div class="cart-item-info">
           <div class="cart-item-name">${i.name}</div>
-          ${variantInfo}
           <div class="cart-item-price">€${i.price.toFixed(2)}</div>
           <div class="qty-controls">
-            <button class="qty-btn" onclick="changeQty('${itemId}',-1)">−</button>
+            <button class="qty-btn" onclick="changeQty(${i.id},-1)">−</button>
             <span>${i.qty}</span>
-            <button class="qty-btn" onclick="changeQty('${itemId}',1)" ${i.qty >= i.maxStock ? 'disabled' : ''}>+</button>
-            <button class="remove-btn" onclick="removeItem('${itemId}')">🗑️</button>
+            <button class="qty-btn" onclick="changeQty(${i.id},1)" ${i.qty >= i.maxStock ? 'disabled' : ''}>+</button>
+            <button class="remove-btn" onclick="removeItem(${i.id})">🗑️</button>
           </div>
         </div>
-      </div>`}).join('');
+      </div>`).join('');
   }
   localStorage.setItem('cart', JSON.stringify(cart));
 }
 
-function changeQty(itemId, delta) { 
-  const i = cart.find(x => (x.cartId || x.id) === itemId); 
+function changeQty(id, d) { 
+  const i = cart.find(x => x.id === id); 
   if (i) { 
-    if (i.qty + delta > i.maxStock) { alert(`Max: ${i.maxStock}`); return; }
-    i.qty = Math.max(1, i.qty + delta); 
+    if (i.qty + d > i.maxStock) { alert(`Max: ${i.maxStock}`); return; }
+    i.qty = Math.max(1, i.qty + d); 
     updateCart(); 
   } 
 }
-
-function removeItem(itemId) { 
-  cart = cart.filter(x => (x.cartId || x.id) !== itemId); 
-  updateCart(); 
-}
-
-function toggleCart() { 
-  cartSidebar.classList.toggle('open'); 
-  overlay.classList.toggle('show'); 
-}
-
-// ============================================
-// 💳 CHECKOUT
-// ============================================
+function removeItem(id) { cart = cart.filter(x => x.id !== id); updateCart(); }
+function toggleCart() { cartSidebar.classList.toggle('open'); overlay.classList.toggle('show'); }
 
 function openCheckout() {
   if (!cart.length) { alert('Carrello vuoto!'); return; }
@@ -453,10 +134,7 @@ function openCheckout() {
   document.getElementById('checkout-modal').classList.add('show');
   goToStep(1);
 }
-
-function closeCheckout() { 
-  document.getElementById('checkout-modal').classList.remove('show'); 
-}
+function closeCheckout() { document.getElementById('checkout-modal').classList.remove('show'); }
 
 function goToStep(step) {
   document.querySelectorAll('.checkout-step').forEach(s => s.classList.add('hidden'));
@@ -471,13 +149,10 @@ function initStripe() {
 
 function renderOrderSummary() {
   const sub = cart.reduce((s, i) => s + i.price * i.qty, 0);
-  document.getElementById('order-summary').innerHTML = cart.map(i => {
-    const variantInfo = i.variantColor ? ` (${i.variantColor} - ${i.variantStorage})` : '';
-    return `<div class="summary-item"><span>${i.name}${variantInfo} × ${i.qty}</span><span>€${(i.price * i.qty).toFixed(2)}</span></div>`;
-  }).join('');
+  document.getElementById('order-summary').innerHTML = cart.map(i => `<div class="summary-item"><span>${i.name} × ${i.qty}</span><span>€${(i.price * i.qty).toFixed(2)}</span></div>`).join('');
   document.getElementById('summary-subtotal').textContent = `€${sub.toFixed(2)}`;
-  document.getElementById('summary-shipping').textContent = `€${SHIPPING_COST.toFixed(2)}`;
-  document.getElementById('summary-total').textContent = `€${(sub + SHIPPING_COST).toFixed(2)}`;
+  document.getElementById('summary-shipping').textContent = `€${shippingCost.toFixed(2)}`;
+  document.getElementById('summary-total').textContent = `€${(sub + shippingCost).toFixed(2)}`;
 }
 
 async function processPayment() {
@@ -491,7 +166,7 @@ async function processPayment() {
     await verifyStock();
     
     const sub = cart.reduce((s, i) => s + i.price * i.qty, 0);
-    const total = sub + SHIPPING_COST;
+    const total = sub + shippingCost;
     const addr = `${customerData.address}, ${customerData.cap} ${customerData.city} (${customerData.province})`;
 
     const order = await saveOrder({ 
@@ -512,11 +187,8 @@ async function processPayment() {
       },
       body: JSON.stringify({
         orderId: order.id,
-        items: cart.map(i => {
-          const variantInfo = i.variantColor ? ` (${i.variantColor} - ${i.variantStorage})` : '';
-          return { name: i.name + variantInfo, price: i.price, quantity: i.qty };
-        }),
-        shipping: SHIPPING_COST,
+        items: cart.map(i => ({ name: i.name, price: i.price, quantity: i.qty })),
+        shipping: shippingCost,
         customerEmail: customerData.email,
         successUrl: `${window.location.origin}/success.html?session_id={CHECKOUT_SESSION_ID}`,
         cancelUrl: `${window.location.origin}/index.html`
@@ -548,23 +220,11 @@ async function processPayment() {
 }
 
 async function verifyStock() {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/products?select=id,stock,variants,name`, { 
-    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } 
-  });
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/products?select=id,stock,name`, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
   const prods = await res.json();
-  
   for (const item of cart) {
     const p = prods.find(x => x.id === item.id);
-    if (!p) throw new Error(`"${item.name}" non più disponibile`);
-    
-    if (item.variantColor && item.variantStorage) {
-      const variant = p.variants?.find(v => v.color === item.variantColor && v.storage === item.variantStorage);
-      if (!variant || variant.stock < item.qty) {
-        throw new Error(`"${item.name} (${item.variantColor} - ${item.variantStorage})" non disponibile`);
-      }
-    } else {
-      if (p.stock < item.qty) throw new Error(`"${item.name}" non disponibile`);
-    }
+    if (!p || p.stock < item.qty) throw new Error(`"${item.name}" non disponibile`);
   }
 }
 
@@ -589,87 +249,21 @@ async function saveOrder(data) {
   await fetch(`${SUPABASE_URL}/rest/v1/order_items`, {
     method: 'POST', 
     headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(cart.map(i => ({ 
-      order_id: order.id, 
-      product_id: i.id, 
-      quantity: i.qty, 
-      price: i.price, 
-      shipped: false 
-    })))
+    body: JSON.stringify(cart.map(i => ({ order_id: order.id, product_id: i.id, quantity: i.qty, price: i.price, shipped: false })))
   });
-  
-  // Decrementa stock
-  for (const item of cart) {
-    const product = products.find(p => p.id === item.id);
-    if (!product) continue;
-    
-    if (item.variantColor && item.variantStorage) {
-      const newVariants = product.variants.map(v => {
-        if (v.color === item.variantColor && v.storage === item.variantStorage) {
-          return { ...v, stock: Math.max(0, v.stock - item.qty) };
-        }
-        return v;
-      });
-      
-      await fetch(`${SUPABASE_URL}/rest/v1/products?id=eq.${item.id}`, {
-        method: 'PATCH',
-        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ variants: newVariants })
-      });
-    } else {
-      const newStock = Math.max(0, product.stock - item.qty);
-      await fetch(`${SUPABASE_URL}/rest/v1/products?id=eq.${item.id}`, {
-        method: 'PATCH',
-        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stock: newStock })
-      });
-    }
-  }
-  
   return order;
 }
 
 function showHome() { document.getElementById('hero').style.display = 'block'; }
 function showShop() { document.getElementById('hero').style.display = 'none'; document.getElementById('filters').scrollIntoView({ behavior: 'smooth' }); }
 
-// ============================================
-// 🚀 INIT
-// ============================================
-
 document.addEventListener('DOMContentLoaded', async () => {
-  console.log('🚀 Inizializzazione...');
-  
   const saved = localStorage.getItem('cart');
   if (saved) cart = JSON.parse(saved);
-  
   productsContainer.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:3rem;">⏳ Caricamento...</div>';
-  
   await loadCategories(); 
   await loadProducts();
-  
-  cart = cart.filter(item => { 
-    const p = products.find(x => x.id === item.id); 
-    if (!p) return false;
-    
-    if (item.variantColor && item.variantStorage) {
-      const variant = p.variants?.find(v => v.color === item.variantColor && v.storage === item.variantStorage);
-      if (variant && variant.stock > 0) {
-        item.maxStock = variant.stock;
-        item.qty = Math.min(item.qty, variant.stock);
-        item.price = parseFloat(variant.price);
-        return true;
-      }
-      return false;
-    } else {
-      if (p.stock > 0) { 
-        item.maxStock = p.stock; 
-        item.qty = Math.min(item.qty, p.stock); 
-        return true; 
-      }
-      return false;
-    }
-  });
-  
+  cart = cart.filter(item => { const p = products.find(x => x.id === item.id); if (p?.stock > 0) { item.maxStock = p.stock; item.qty = Math.min(item.qty, p.stock); return true; } return false; });
   updateCart();
   
   document.getElementById('shipping-form')?.addEventListener('submit', e => {
@@ -687,12 +281,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
     goToStep(2);
   });
-  
-  document.getElementById('overlay').addEventListener('click', () => {
-    if (document.getElementById('product-modal').classList.contains('show')) {
-      closeProductModal();
-    }
-  });
-  
-  console.log('✅ Inizializzazione completata!');
 });
