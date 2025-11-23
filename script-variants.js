@@ -4,7 +4,7 @@
 const SUPABASE_URL = 'https://hrjokojbvbmcftmjxihv.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhyam9rb2pidmJtY2Z0bWp4aWh2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3NjY0NzYsImV4cCI6MjA3OTM0MjQ3Nn0.Lk2_VLJbsfQrtDbGgFq9mCNKKdkdyTdCOhktsYIO1Vg';
 const STRIPE_PUBLIC_KEY = 'pk_live_51RMQy2ApBcFhRXHbNhYzC25TFA95DWOeo74P73ufWTLvRAt1zSVqQZNucFKEq8ErJYCcnrVxOJi6AUtxEBYySoYC00aPJKcBiZ';
-const shippingCost = 0.00;
+const shippingCost = 8.00;
 
 let products = [];
 let categories = [];
@@ -199,11 +199,16 @@ function renderVariantSelectors(product) {
       <div class="variant-group">
         <label>Colore:</label>
         <div class="variant-options">
-          ${colors.map(color => `
-            <div class="variant-option" onclick="selectColor('${color}')" data-color="${color}">
+          ${colors.map(color => {
+            // Verifica se TUTTI gli storage per questo colore sono esauriti
+            const hasStock = product.variants.some(v => v.color === color && v.stock > 0);
+            const disabledClass = !hasStock ? 'disabled' : '';
+            const disabledStyle = !hasStock ? 'style="opacity:0.3;cursor:not-allowed;text-decoration:line-through"' : '';
+            return `
+            <div class="variant-option ${disabledClass}" onclick="${hasStock ? `selectColor('${color}')` : ''}" data-color="${color}" ${disabledStyle}>
               ${color}
-            </div>
-          `).join('')}
+            </div>`;
+          }).join('')}
         </div>
       </div>
     `;
@@ -244,8 +249,18 @@ function selectColor(color) {
   const availableStorages = getAvailableStorages(selectedProduct, color);
   document.querySelectorAll('[data-storage]').forEach(el => {
     const storage = el.getAttribute('data-storage');
-    if (!availableStorages.includes(storage) || !isVariantAvailable(selectedProduct, color, storage)) {
+    const variant = findVariant(selectedProduct, color, storage);
+    
+    // Disabilita se: non esiste variante O stock = 0
+    if (!variant || variant.stock <= 0 || !availableStorages.includes(storage)) {
       el.classList.add('disabled');
+      el.style.opacity = '0.3';
+      el.style.cursor = 'not-allowed';
+      el.style.textDecoration = 'line-through';
+    } else {
+      el.style.opacity = '1';
+      el.style.cursor = 'pointer';
+      el.style.textDecoration = 'none';
     }
   });
   
@@ -577,6 +592,37 @@ async function saveOrder(data) {
       shipped: false 
     })))
   });
+  
+  // CRITICO: Decrementa stock per ogni prodotto/variante nel carrello
+  for (const item of cart) {
+    const product = products.find(p => p.id === item.id);
+    if (!product) continue;
+    
+    if (item.variantColor && item.variantStorage) {
+      // Prodotto con varianti - decrementa variante specifica
+      const newVariants = product.variants.map(v => {
+        if (v.color === item.variantColor && v.storage === item.variantStorage) {
+          return { ...v, stock: Math.max(0, v.stock - item.qty) };
+        }
+        return v;
+      });
+      
+      await fetch(`${SUPABASE_URL}/rest/v1/products?id=eq.${item.id}`, {
+        method: 'PATCH',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ variants: newVariants })
+      });
+    } else {
+      // Prodotto semplice - decrementa stock normale
+      const newStock = Math.max(0, product.stock - item.qty);
+      await fetch(`${SUPABASE_URL}/rest/v1/products?id=eq.${item.id}`, {
+        method: 'PATCH',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stock: newStock })
+      });
+    }
+  }
+  
   return order;
 }
 

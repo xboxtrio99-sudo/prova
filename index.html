@@ -171,8 +171,55 @@
 
   <footer>
     <div class="logo">📱 TOP PHONE</div>
+    <div class="footer-links">
+      <a href="privacy.html">Privacy Policy</a>
+      <a href="mailto:info@topphone.com">Contatti</a>
+    </div>
     <p>© 2025 Top Phone - Tutti i diritti riservati</p>
+    <p style="font-size: 0.85rem; color: #9ca3af; margin-top: 0.5rem;">
+      Top Phone di Mario Rossi | Via Roma 123, 20100 Milano (MI)<br>
+      P.IVA: 12345678901 | Email: info@topphone.com | Tel: +39 02 1234567
+    </p>
   </footer>
+
+  <!-- COOKIE BANNER -->
+  <div id="cookie-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#1f2937;color:white;padding:1.25rem 2rem;z-index:9999;box-shadow:0 -4px 20px rgba(0,0,0,0.3);animation:slideUp 0.4s ease">
+    <div style="max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:2rem;flex-wrap:wrap">
+      <p style="margin:0;flex:1;min-width:250px">
+        🍪 Utilizziamo cookie per migliorare la tua esperienza. 
+        <a href="privacy.html" style="color:#7c3aed;text-decoration:underline">Leggi di più</a>
+      </p>
+      <div style="display:flex;gap:1rem">
+        <button onclick="rejectCookies()" style="background:#4b5563;color:white;border:none;padding:0.75rem 1.5rem;border-radius:8px;cursor:pointer;font-weight:600">
+          Rifiuta
+        </button>
+        <button onclick="acceptCookies()" style="background:#7c3aed;color:white;border:none;padding:0.75rem 1.5rem;border-radius:8px;cursor:pointer;font-weight:600">
+          Accetta
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function acceptCookies() {
+      localStorage.setItem('cookies-accepted', 'true');
+      document.getElementById('cookie-banner').style.display = 'none';
+    }
+    function rejectCookies() {
+      localStorage.setItem('cookies-accepted', 'false');
+      document.getElementById('cookie-banner').style.display = 'none';
+    }
+    // Mostra banner se non ha ancora scelto
+    if (!localStorage.getItem('cookies-accepted')) {
+      document.getElementById('cookie-banner').style.display = 'block';
+    }
+  </script>
+  <style>
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+  </style>
 
   <script src="script-variants.js"></script>
 </body>

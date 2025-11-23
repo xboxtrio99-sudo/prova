@@ -139,6 +139,9 @@ nav a:hover { color: #7c3aed; }
 footer { background: #111827; color: white; padding: 2.5rem; text-align: center; margin-top: 2rem; }
 footer .logo { color: #a78bfa; margin-bottom: 0.5rem; }
 footer p { color: #6b7280; font-size: 0.9rem; }
+.footer-links { display: flex; gap: 2rem; justify-content: center; margin: 1rem 0; flex-wrap: wrap; }
+.footer-links a { color: #9ca3af; text-decoration: none; font-size: 0.95rem; transition: color 0.2s; }
+.footer-links a:hover { color: #7c3aed; }
 
 @media (max-width: 768px) {
   header { padding: 1rem; }
