@@ -3,40 +3,37 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Top Phone - E-Commerce</title>
+  <title>Top Phone - I Migliori Smartphone</title>
   <link rel="stylesheet" href="style.css">
-  <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
   <header>
-    <div class="logo">TOP PHONE</div>
+    <div class="logo">📱 TOP PHONE</div>
     <nav>
-      <a href="#" onclick="showHome()">Home</a>
-      <a href="#" onclick="showShop()">Prodotti</a>
+      <a href="#">Home</a>
+      <a href="#products">Shop</a>
     </nav>
-    <button class="cart-btn" onclick="toggleCart()">
-      🛒 Carrello (<span id="cart-count">0</span>)
-    </button>
+    <button class="cart-btn" onclick="toggleCart()">🛒 Carrello (<span id="cart-count">0</span>)</button>
   </header>
 
-  <section class="hero" id="hero">
-    <h1>Nuova Collezione</h1>
-    <p>Scopri i prodotti più trendy della stagione</p>
-    <button onclick="showShop()">Esplora →</button>
+  <section class="hero">
+    <h1>📱 I Migliori Smartphone</h1>
+    <p>Samsung, Apple, Xiaomi e molto altro. Prezzi imbattibili!</p>
+    <button onclick="document.getElementById('products').scrollIntoView({behavior:'smooth'})">Scopri di più</button>
   </section>
 
-  <div class="filters" id="filters">
-    <button class="filter-btn active" onclick="filterProducts('tutti', this)">Tutti</button>
-  </div>
+  <section class="products-section" id="products">
+    <h2>I Nostri Prodotti</h2>
+    <div class="filters" id="filters"></div>
+    <div class="products" id="products-grid"></div>
+  </section>
 
-  <main class="products" id="products"></main>
-
-  <div class="overlay" id="overlay" onclick="toggleCart()"></div>
-
-  <aside class="cart-sidebar" id="cart">
+  <!-- CARRELLO SIDEBAR -->
+  <div class="cart-overlay" id="cart-overlay" onclick="toggleCart()"></div>
+  <aside class="cart-sidebar" id="cart-sidebar">
     <div class="cart-header">
-      <h2>Carrello</h2>
-      <button class="close-btn" onclick="toggleCart()">×</button>
+      <h3>🛒 Il Tuo Carrello</h3>
+      <button onclick="toggleCart()">✕</button>
     </div>
     <div class="cart-items" id="cart-items"></div>
     <div class="cart-footer">
@@ -44,10 +41,41 @@
         <span>Totale:</span>
         <span id="cart-total">€0.00</span>
       </div>
-      <button class="checkout-btn" onclick="openCheckout()">Checkout →</button>
+      <button class="checkout-btn" onclick="openCheckout()">Procedi all'Ordine</button>
     </div>
   </aside>
 
+  <!-- MODAL PRODOTTO CON VARIANTI -->
+  <div class="modal-overlay" id="product-modal">
+    <div class="modal">
+      <button class="modal-close" onclick="closeProductModal()">×</button>
+      <div class="modal-content">
+        <div class="product-image">
+          <img id="modal-image" src="" alt="">
+        </div>
+        <div class="product-info">
+          <div class="product-category" id="modal-category"></div>
+          <h2 id="modal-name"></h2>
+          <div class="product-rating" id="modal-rating"></div>
+          <p id="modal-description"></p>
+          
+          <!-- SELETTORI VARIANTI -->
+          <div id="variant-section"></div>
+          
+          <div class="product-price-box">
+            <div class="price" id="modal-price">€0.00</div>
+            <div class="stock" id="modal-stock"></div>
+          </div>
+          
+          <button class="add-to-cart-btn" id="modal-add-btn" onclick="addFromModal()">
+            + Aggiungi al Carrello
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CHECKOUT -->
   <div class="modal-overlay" id="checkout-modal">
     <div class="modal">
       <button class="modal-close" onclick="closeCheckout()">×</button>
@@ -55,96 +83,49 @@
       <div class="checkout-step" id="step-1">
         <h2>📦 Dati Spedizione</h2>
         <form id="shipping-form">
-          <div class="form-row">
-            <div class="form-group">
-              <label>Nome *</label>
-              <input type="text" id="customer-name" required placeholder="Mario">
-            </div>
-            <div class="form-group">
-              <label>Cognome *</label>
-              <input type="text" id="customer-surname" required placeholder="Rossi">
-            </div>
+          <div class="form-group">
+            <label>Nome *</label>
+            <input type="text" id="customer-name" required>
           </div>
           <div class="form-group">
             <label>Email *</label>
-            <input type="email" id="customer-email" required placeholder="mario@email.com">
+            <input type="email" id="customer-email" required>
           </div>
           <div class="form-group">
             <label>Telefono *</label>
-            <input type="tel" id="customer-phone" required placeholder="+39 333 1234567">
+            <input type="tel" id="customer-phone" required>
           </div>
           <div class="form-group">
             <label>Indirizzo *</label>
-            <input type="text" id="customer-address" required placeholder="Via Roma 123">
+            <input type="text" id="customer-address" required>
           </div>
           <div class="form-row">
             <div class="form-group">
               <label>Città *</label>
-              <input type="text" id="customer-city" required placeholder="Milano">
+              <input type="text" id="customer-city" required>
             </div>
             <div class="form-group">
               <label>CAP *</label>
-              <input type="text" id="customer-cap" required placeholder="20100">
+              <input type="text" id="customer-cap" required>
             </div>
           </div>
-          <div class="form-group">
-            <label>Provincia *</label>
-            <input type="text" id="customer-province" required placeholder="MI">
-          </div>
-          <div class="form-group">
-            <label>Note (opzionale)</label>
-            <textarea id="customer-notes" placeholder="Es: citofono"></textarea>
-          </div>
-          <button type="submit" class="btn-primary">Continua →</button>
+          <button type="submit" class="btn-primary">Continua</button>
         </form>
       </div>
-      
+
       <div class="checkout-step hidden" id="step-2">
-        <h2>💳 Riepilogo e Pagamento</h2>
-        <div class="order-summary" id="order-summary"></div>
-        <div class="order-totals">
-          <div class="total-row"><span>Subtotale:</span><span id="summary-subtotal">€0.00</span></div>
-          <div class="total-row"><span>Spedizione:</span><span id="summary-shipping">€8.00</span></div>
-          <div class="total-row total-final"><span>Totale:</span><span id="summary-total">€0.00</span></div>
-        </div>
-        
-        <h3>💳 Pagamento Sicuro</h3>
-        <div class="card-form">
-          <div class="payment-info">
-            <span class="payment-icon">🔒</span>
-            <div>
-              <strong>Pagamento gestito da Stripe</strong>
-              <p>Verrai reindirizzato alla pagina di pagamento sicura</p>
-            </div>
-          </div>
-          <div id="payment-error" style="color:#ef4444;font-size:0.875rem;margin-top:1rem;min-height:1rem;"></div>
-        </div>
-        
-        <div class="checkout-buttons">
-          <button type="button" class="btn-secondary" onclick="goToStep(1)">← Indietro</button>
-          <button type="button" class="btn-primary" id="pay-button" onclick="processPayment()">Paga con Stripe 💳</button>
-        </div>
-        <p class="secure-note">🔒 I tuoi dati sono al sicuro</p>
-      </div>
-      
-      <div class="checkout-step hidden" id="step-3">
-        <div class="order-confirmed">
-          <div class="success-icon">✅</div>
-          <h2>Ordine Confermato!</h2>
-          <p>Ordine: <strong id="order-number">#12345</strong></p>
-          <p>Email: <strong id="confirm-email"></strong></p>
-          <div class="order-details" id="confirm-details"></div>
-          <button class="btn-primary" onclick="closeCheckout(); location.reload();">Continua Shopping</button>
-        </div>
+        <h2>💳 Conferma Ordine</h2>
+        <div id="order-summary"></div>
+        <button class="btn-primary" onclick="processOrder()">Completa Ordine</button>
       </div>
     </div>
   </div>
 
   <footer>
-    <div class="logo">TOP PHONE</div>
-    <p>© 2025 Tutti i diritti riservati</p>
+    <p>© 2025 Top Phone - Tutti i diritti riservati</p>
   </footer>
 
+  <script src="https://js.stripe.com/v3/"></script>
   <script src="script.js"></script>
 </body>
 </html>
