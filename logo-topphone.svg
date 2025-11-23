@@ -1,0 +1,31 @@
+<svg width="200" height="60" viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg">
+  <!-- Sfondo gradiente -->
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7c3aed;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#4f46e5;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Icona telefono stilizzata -->
+  <g transform="translate(10, 10)">
+    <rect x="0" y="0" width="30" height="40" rx="5" fill="url(#grad1)" stroke="white" stroke-width="2"/>
+    <circle cx="15" cy="35" r="2" fill="white"/>
+    <rect x="5" y="5" width="20" height="25" rx="2" fill="white" opacity="0.3"/>
+  </g>
+  
+  <!-- Testo TOP PHONE -->
+  <text x="50" y="30" font-family="'Segoe UI', Arial, sans-serif" font-size="24" font-weight="900" fill="#1f2937">
+    TOP
+  </text>
+  <text x="50" y="50" font-family="'Segoe UI', Arial, sans-serif" font-size="18" font-weight="600" fill="url(#grad2)">
+    PHONE
+  </text>
+  
+  <!-- Stellina decorativa -->
+  <circle cx="125" cy="25" r="2" fill="#fbbf24"/>
+</svg>

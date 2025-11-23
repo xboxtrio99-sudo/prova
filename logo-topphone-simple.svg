@@ -1,0 +1,20 @@
+<svg width="120" height="40" viewBox="0 0 120 40" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="phoneGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7c3aed;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#4f46e5;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Icona telefono minimalista -->
+  <g transform="translate(5, 5)">
+    <rect x="0" y="0" width="20" height="30" rx="3" fill="url(#phoneGrad)"/>
+    <rect x="3" y="3" width="14" height="20" rx="1.5" fill="white" opacity="0.3"/>
+    <circle cx="10" cy="26" r="1.5" fill="white"/>
+  </g>
+  
+  <!-- Testo -->
+  <text x="32" y="25" font-family="'Segoe UI', Arial, sans-serif" font-size="20" font-weight="900" fill="#1f2937">
+    <tspan fill="#7c3aed">TOP</tspan> PHONE
+  </text>
+</svg>
