@@ -4,7 +4,7 @@
 const SUPABASE_URL = 'https://hrjokojbvbmcftmjxihv.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhyam9rb2pidmJtY2Z0bWp4aWh2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3NjY0NzYsImV4cCI6MjA3OTM0MjQ3Nn0.Lk2_VLJbsfQrtDbGgFq9mCNKKdkdyTdCOhktsYIO1Vg';
 const STRIPE_PUBLIC_KEY = 'pk_live_51RMQy2ApBcFhRXHbNhYzC25TFA95DWOeo74P73ufWTLvRAt1zSVqQZNucFKEq8ErJYCcnrVxOJi6AUtxEBYySoYC00aPJKcBiZ';
-const shippingCost = 0.00;
+const shippingCost = 8.00;
 
 let products = [];
 let categories = [];
@@ -193,7 +193,6 @@ function renderVariantSelectors(product) {
   
   let html = '';
   
-  // Colori
   if (colors.length > 0) {
     html += `
       <div class="variant-group">
@@ -209,7 +208,6 @@ function renderVariantSelectors(product) {
     `;
   }
   
-  // Memoria
   if (storages.length > 0) {
     html += `
       <div class="variant-group">
@@ -231,16 +229,13 @@ function renderVariantSelectors(product) {
 function selectColor(color) {
   if (!selectedProduct) return;
   
-  // Aggiorna selezione colore
   document.querySelectorAll('[data-color]').forEach(el => el.classList.remove('selected'));
   document.querySelector(`[data-color="${color}"]`)?.classList.add('selected');
   
-  // Reset storage selection
   document.querySelectorAll('[data-storage]').forEach(el => {
     el.classList.remove('selected', 'disabled');
   });
   
-  // Disabilita storage non disponibili per questo colore
   const availableStorages = getAvailableStorages(selectedProduct, color);
   document.querySelectorAll('[data-storage]').forEach(el => {
     const storage = el.getAttribute('data-storage');
@@ -249,7 +244,6 @@ function selectColor(color) {
     }
   });
   
-  // Reset variant if storage not selected
   if (!selectedVariant || selectedVariant.color !== color) {
     selectedVariant = null;
   }
@@ -269,7 +263,6 @@ function selectStorage(storage) {
   const variant = findVariant(selectedProduct, selectedColor, storage);
   if (!variant || variant.stock <= 0) return;
   
-  // Aggiorna selezione storage
   document.querySelectorAll('[data-storage]').forEach(el => el.classList.remove('selected'));
   document.querySelector(`[data-storage="${storage}"]`)?.classList.add('selected');
   
@@ -560,7 +553,8 @@ async function saveOrder(data) {
       notes: data.notes, 
       payment_method: 'stripe',
       total: data.total, 
-      status: data.status
+      status: data.status,
+      cart_snapshot: JSON.stringify(cart)
     })
   });
   if (!res.ok) throw new Error('Errore salvataggio');
@@ -573,10 +567,12 @@ async function saveOrder(data) {
       order_id: order.id, 
       product_id: i.id, 
       quantity: i.qty, 
-      price: i.price, 
+      price: i.price,
+      variant_info: i.variantColor ? JSON.stringify({color: i.variantColor, storage: i.variantStorage}) : null,
       shipped: false 
     })))
   });
+  
   return order;
 }
 
@@ -595,7 +591,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadCategories(); 
   await loadProducts();
   
-  // Aggiorna cart con stock correnti
   cart = cart.filter(item => { 
     const p = products.find(x => x.id === item.id); 
     if (!p) return false;
@@ -637,7 +632,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     goToStep(2);
   });
   
-  // Close modal on overlay click
   document.getElementById('overlay').addEventListener('click', () => {
     if (document.getElementById('product-modal').classList.contains('show')) {
       closeProductModal();
